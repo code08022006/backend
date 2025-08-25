@@ -1,4 +1,4 @@
-class RequestError{
+class ApiResponce{
     constructor(statuscode,data,message="success"){
         this.statuscode=statuscode
         this.data=data
@@ -7,4 +7,4 @@ class RequestError{
     }
 }
 
-export{RequestError}
+export{ApiResponce}

@@ -1,3 +1,5 @@
+//we develop this file to give proper error during our upload of any image,file and adding the information in the form
+
 class ApiError extends Error{
     constructor(
         statuscode,
@@ -20,4 +22,4 @@ class ApiError extends Error{
     }
 }
 
-export default ApiError
+export  {ApiError}
