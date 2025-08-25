@@ -16,4 +16,11 @@ app.use(express.json({
 app.use(express.urlencoded({extended:true}))//for url data
 app.use(express.static("public"))//to save images
 app.use(cookieParser())
+
+
+//router import
+
+import userrouter from "./routes/user.router.js"
+
+app.use("/api/v1/users",userrouter)
 export default app
