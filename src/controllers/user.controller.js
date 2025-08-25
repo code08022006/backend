@@ -2,7 +2,7 @@ import { asynchandler } from "../utils/asynchadler.js";
 import { ApiError } from "../utils/Apierror.js";
 import {User} from "../models/user.model.js"
 import{cloudinaryUpload} from "../utils/cloudinary.js"
-import { upload } from "../middlewares/multer.midleware.js";
+
 import { ApiResponce } from "../utils/Apiresonse.js";
 const registeruser=asynchandler( async(req,res)=>{
  // get user details from frontend
@@ -20,17 +20,17 @@ const {fullname,username,email}=req.body
 if ([fullname,username,email].some((field)=>
 field?.trim===""))
 {
-    throw ApiError(400,"please enter all the credentials")
+    throw new ApiError(400,"please enter all the credentials")
 }
 //checking that the user with the same emeil and username exists  in the server or not
-const existedUser=User.findOne(
+const existedUser=await User.findOne(
     {
         $or:[{username},{email}]
     }
     
 )
 if(existedUser){
-    throw ApiError(409,"user exists")
+    throw new ApiError(409,"user exists")
 }
 
 
@@ -42,7 +42,7 @@ const coverimagelocalpath=req.files?.coverImage[0]?.path
 
 
 if (!avtarLocalpath){
-    throw ApiError(400,"avtar image must required")
+    throw new ApiError(400,"avtar image must required")
 }
 
 //uploading file to cloudinary
@@ -51,7 +51,7 @@ const avatar=await cloudinaryUpload(avtarLocalpath);
 const coverImage=await cloudinaryUpload(coverimagelocalpath)
 
 if(!avatar){
-    throw ApiError(400,"avtar image must be needed")
+    throw new ApiError(400,"avtar image must be needed")
 }
     //here User which is written in user.model.js is the only one which is making contact with the db so to do something with db we have to do it through User
 //here we create db entries
@@ -61,7 +61,8 @@ if(!avatar){
         coverImage:coverImage?.url|| "",
         email,
         username:username.toLowerCase(),
-        password,
+        
+        
 
 
     })
@@ -70,7 +71,7 @@ if(!avatar){
     const createuser=await User.findById(user._id).select("-password -refreshtoken")
 
     if(!createuser){
-        throw ApiError(500,"Something went wrong while registring the user")
+        throw new ApiError(500,"Something went wrong while registring the user")
     }
 
     return res.status(201).json(
