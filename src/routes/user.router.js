@@ -20,3 +20,14 @@ router.route("/register").post(
     registeruser)
 
 export default router
+
+
+// import multer from "multer";
+
+// const upload = multer({ dest: "uploads/" }); // or your own config
+
+// // Route:
+// router.post("/register", upload.fields([
+//     { name: "avatar", maxCount: 1 },
+//     { name: "coverImage", maxCount: 1 }
+// ]), registeruser);

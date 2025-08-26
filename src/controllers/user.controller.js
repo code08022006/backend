@@ -15,20 +15,23 @@ const registeruser=asynchandler( async(req,res)=>{
 // check for user creation
 // return response
 //body contains all the input fileds that are eneter by the user in the form ,only text details body has
-const {fullname,username,email}=req.body
+// console.log(req.body)
+const {fullname,username,email,password}=req.body
 // chaecking that the user must enter all the fields
-if ([fullname,username,email].some((field)=>
-field?.trim===""))
+if ([fullname,username,email,password].some(field => !field || field.trim() === ""))
 {
     throw new ApiError(400,"please enter all the credentials")
 }
 //checking that the user with the same emeil and username exists  in the server or not
+
 const existedUser=await User.findOne(
     {
         $or:[{username},{email}]
     }
     
 )
+
+
 if(existedUser){
     throw new ApiError(409,"user exists")
 }
@@ -37,10 +40,18 @@ if(existedUser){
 //here files gives us the properties which are in array because of this we use index to access them
 //here we are saving the local path of the file aas multer takes our file then store it to our server for sime time  then uploads is to cloudinary
 //? this is used to check optionaly because some time we does not get the property because of the some reason
+// console.log(req.files);
+//here we wnat to know the localpath of the avatar so we did this
 const avtarLocalpath=req.files?.avatar[0]?.path
-const coverimagelocalpath=req.files?.coverImage[0]?.path
+// const coverimagelocalpath=req.files?.coverImage[0]?.path
 
+let coverimagelocalpath;
+// this is done to allow user if the coverimage is not uploaded tobhi ddont woory
+if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length>0){
+    coverimagelocalpath=req.files.coverImage[0].path
+}
 
+//not avatar prenebnt give the erroer to the user
 if (!avtarLocalpath){
     throw new ApiError(400,"avtar image must required")
 }
@@ -49,7 +60,7 @@ if (!avtarLocalpath){
 
 const avatar=await cloudinaryUpload(avtarLocalpath);
 const coverImage=await cloudinaryUpload(coverimagelocalpath)
-
+//here we see our file is uploaded to cloudinary or not
 if(!avatar){
     throw new ApiError(400,"avtar image must be needed")
 }
@@ -59,9 +70,10 @@ if(!avatar){
         fullname,
         avatar:avatar.url,
         coverImage:coverImage?.url|| "",
-        email,
+        password,
+    
         username:username.toLowerCase(),
-        
+        email,
         
 
 
