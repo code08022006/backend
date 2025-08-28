@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { registeruser } from "../controllers/user.controller.js";
+import { loginUser, logoutuser, refreshAccessToken, registeruser } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.midleware.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 const router=Router()
 //creating a router menas in app.js we give api/v1/users after that/register will execute
 //here we mentioning the upload fields
@@ -19,6 +20,13 @@ router.route("/register").post(
     ]),
     registeruser)
 
+router.route("/login").post( loginUser)
+
+
+//secured routes
+
+router.route("/logout").post(verifyJWT,logoutuser)
+router.route("/refreshtoken").post(refreshAccessToken)
 export default router
 
 

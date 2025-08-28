@@ -58,12 +58,14 @@ userSchema.pre("save", async function(next){
     this.password=await bcrypt.hash(this.password,10)
     next()
 })
+
+//it is used to decrypt our password which is encrypt because we want to compare the password enter by the user durin the login and register is same or not
 userSchema.methods.isPasswordCorrect=async function (password){
     return await bcrypt.compare(password,this.password)
 }
 
 userSchema.methods.generateAccessToken = function(){
-    return jsonwebtoken.sign(
+    return jwt.sign(
         {
             _id: this._id,
             email: this.email,

@@ -10,7 +10,7 @@ app.use(cors({
 
 
 app.use(express.json({
-    limit:"40kb"
+    limit:"16kb"
 }))//for form data text data
 
 app.use(express.urlencoded({extended:true}))//for url data

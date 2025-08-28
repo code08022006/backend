@@ -4,7 +4,38 @@ import {User} from "../models/user.model.js"
 import{cloudinaryUpload} from "../utils/cloudinary.js"
 
 import { ApiResponce } from "../utils/Apiresonse.js";
+import jwt from "jsonwebtoken"
+
+const generateRefreshandAccesstoken = async (userid) => {
+    try {
+        const user = await User.findById(userid);
+
+        if (!user) {
+            throw new ApiError(404, "User not found for token generation");
+        }
+
+        const accessToken = user.generateAccessToken?.();
+        const refreshToken = user.generateRefreshToken?.();
+
+        if (!accessToken || !refreshToken) {
+            throw new ApiError(500, "Token generation methods not defined");
+        }
+
+        user.refreshToken = refreshToken;
+        await user.save({ validateBeforeSave: false });
+
+        return { refreshToken, accessToken };
+
+    } catch (error) {
+        console.error("Error in generateRefreshandAccesstoken:", error);
+        throw new ApiError(500, "Something went wrong while generating refresh and access token");
+    }
+};
+
+
 const registeruser=asynchandler( async(req,res)=>{
+    console.log(req.body);
+    
  // get user details from frontend
 // validation - not empty
 // check if user already exists: username, email
@@ -92,4 +123,142 @@ if(!avatar){
     )
 })
 
-export{registeruser}
+
+const loginUser=asynchandler(async(req,res)=>{
+    
+    
+    // req body -> data
+// username or email
+//find the user
+//password check
+//access and referesh token
+//send cookie
+
+const {password,username,email}=req.body; 
+//here we are giving the options that user can login with username or emial but password must be eneter
+if(!(username || email)){
+    throw new ApiError(400,"username or email must be entered")
+}
+
+//here we are checking that the the user with given username or password is present in the db or not here we use User.findone because first User is used because we know we are going to contact with db and in our current code only User can contact with db hence we use User and also a dollar or  is a databse operation like in sql we do SELECT same to that
+const user =await User.findOne({
+    $or:[{username},{email}]
+})
+// after doing both the above steps if we dont get the user after all that it means the user is never register in the db
+if(!user){
+    throw ApiError (404,"user not found")
+}
+// here we are checking the paswwoerd
+const ispasswordvalid=await user.isPasswordCorrect(password)//here we pass a password which we retrive from the req.body
+
+if (!ispasswordvalid){
+    throw ApiError(401,"password not found")
+}
+const{refreshToken,accessToken}=await generateRefreshandAccesstoken(user._id)
+
+//now we wan t to send some dta to user but note that in above we make a useLogin which is a object which contains all the user fileds then by this we can simply share to user a userlogin varialbe but note userlogin also contains password and refreshtoken so we have to remove it then we can send it easily
+const loggedinUser=await User.findById(user._id).select("-password -refreshtoken") //here we give the the fileds which we dont want in the string and ther name come from User.model.js 
+
+//now we have to send refresh token and access token which we can send through cookies beacuse cookies make them encrypt and then send them
+// here httponly true and secure true makes the cookies to be changed by only the server
+const options={
+    httpOnly:true,
+    secure:true
+}
+
+return res
+.status(200)
+.cookie("accessToken",accessToken,options)
+.cookie("refreshToken",refreshToken,options)
+.json(
+    new ApiResponce(
+        200,
+        {
+            user:refreshToken,accessToken,loggedinUser
+        },
+        "user logged in successfully"
+    )
+)
+//now we wnant to logout the user then only we have to do that we want to take refresh token out of the users machine and alsothis we have to take cookiescan do usin a middleware and for this we have to design our own middlewrae middleware means "jatte wakt mujse milke jana"
+})
+const logoutuser=asynchandler(async(req,res)=>{
+    User.findByIdAndUpdate(
+        req.user,{
+            $set:{
+                refreshToken:undefined
+            }
+        },
+        {
+            new:true,
+        },
+
+
+
+
+    )
+    const options={
+    httpOnly:true,
+    secure:true
+}
+return res
+.status(200)
+.clearCookie("accesstoken",options)
+.clearCookie("refreshtoken",options)
+.json(new ApiResponce(200,{},"user logged out"))
+})
+//now we want to make sure that after some time the user dont need to re enter his mail and password after suuceessful login so for this we are auto comparing the refrsh token in the db and user refresh token then the logic for this is as follows
+const refreshAccessToken=asynchandler(async(req,res)=>{
+    //first we access the refresh token which on the user side
+    const incominRefreshToken=req.cookies.refreshToken || req.body.refreshToken
+
+    if(!incominRefreshToken){
+        throw new ApiError(401,"Unauthorized access")
+    }
+    //now we are verifiying the token in the same way as we doing on the auth middelwre
+   try {
+     const decodedToken=jwt.verify(incominRefreshToken,process.env.REFRESH_TOKEN_SECRET)
+ 
+     // now if we get the decode refresh token then we will get _id which we writeen in the generaterefreshtoken
+ 
+    const user= await User.findById(decodedToken?._id)
+ 
+    if(!user){
+     throw new ApiError (401,"invalid refresh token")
+    }
+ 
+ //    now we comparing the refresh token
+ if(incominRefreshToken !== user?.refreshToken){
+     throw new ApiError(401,"refresh token is expired or used")
+ 
+ //if matche then generate new token 
+ 
+ 
+ 
+ 
+ }
+ const options={
+     httpOnly:true,
+ 
+     secure:true,
+ }
+ const {accessToken,newrefreshToken}=await generateRefreshandAccesstoken(user._id)
+ return res
+ .status(200)
+ .cookies("accessToken",accessToken,options)
+ .cookies("refreshToken",newrefreshToken,options)
+ .json(
+     new ApiResponce(
+         200,
+         {
+             accessToken,refreshToken:newrefreshToken
+         },
+         "Access token refreshed successfully"
+     )
+ )
+   } catch (error) {
+    throw new ApiError(401,error?.message || "invlaid access token")
+    
+   }
+})
+
+export{registeruser,loginUser,logoutuser,refreshAccessToken}
