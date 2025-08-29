@@ -156,7 +156,7 @@ if (!ispasswordvalid){
 }
 const{refreshToken,accessToken}=await generateRefreshandAccesstoken(user._id)
 
-//now we wan t to send some dta to user but note that in above we make a useLogin which is a object which contains all the user fileds then by this we can simply share to user a userlogin varialbe but note userlogin also contains password and refreshtoken so we have to remove it then we can send it easily
+//now we wan t to send some dta to user but note that in above we make a user which is a object which contains all the user fileds then by this we can simply share to user a user varialbe but note user also contains password and refreshtoken so we have to remove it then we can send it easily
 const loggedinUser=await User.findById(user._id).select("-password -refreshtoken") //here we give the the fileds which we dont want in the string and ther name come from User.model.js 
 
 //now we have to send refresh token and access token which we can send through cookies beacuse cookies make them encrypt and then send them
@@ -261,4 +261,93 @@ const refreshAccessToken=asynchandler(async(req,res)=>{
    }
 })
 
-export{registeruser,loginUser,logoutuser,refreshAccessToken}
+const changePassword=asynchandler(async(req,res)=>{
+    const {oldPassword,newPassword}=req.body
+    // the user is want to change the password then we have to first have the users id so it can be obtain because user is changing password then user is logged in so we make a auth middleware in which we retirn the user so we can access id from therer
+  const user=await  User.findById(req.user?._id)
+  const isPasswordCorrect=await user.isPasswordCorrect(oldPassword)
+  if(!isPasswordCorrect){
+    throw new ApiError(400,"invalid Password")
+  }
+  user.password=newPassword
+  await user.save({validateBeforeSave:false})
+  return res
+  .status(200)
+  .json(
+    new ApiResponce(
+        200,
+        {},
+        "Password is cahnged successfully"
+    )
+  )
+})
+
+const currentUser=asynchandler(async(req,res)=>{
+    return res
+    .status(200)
+    .json(200,req.user,"current user fetched succcessfully")
+})
+
+const UpdateInfo=asynchandler(async(req,res)=>{
+    const {fullname,email}=req.body
+    if(!(fullname||email)){
+        throw new ApiError(400,"All field s are required")
+    }
+    await User.findByIdAndUpdate(req.user?._id,{
+        $set:{
+            fullname,
+            email,
+        },
+    },
+    {new:true}).select("-password")
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponce(
+            200,
+            user,
+            "Info Udated successfully"
+        )
+    )
+})
+
+const udateAvatar=asynchandler(async(req,res)=>{
+  const avatarlocal=req.file?.path
+  if(!avatarlocal){
+    throw new ApiError(400,"Avatar is missing")
+
+
+  }
+  const avatar=await cloudinaryUpload(avatarlocal)
+  if(!avatar.url){
+    throw new ApiError(400,"Avatar url missing")
+  }
+  const user=await User.findByIdAndUpdate(req.user?._id,{
+    $set:{
+        avatar:avatar?.url
+    }
+  },{new:true}).select("-password")
+
+  return res
+  .status(200)
+  .json(
+    new ApiResponce
+    (
+        200,
+        user,
+        "avatar updated successfully"
+    )
+  )
+
+
+    
+})
+export{registeruser,
+    loginUser,
+    logoutuser,
+    refreshAccessToken,
+    changePassword,
+    currentUser,
+    UpdateInfo,
+    avatar}
