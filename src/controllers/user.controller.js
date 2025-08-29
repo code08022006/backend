@@ -350,4 +350,4 @@ export{registeruser,
     changePassword,
     currentUser,
     UpdateInfo,
-    avatar}
+    udateAvatar}
