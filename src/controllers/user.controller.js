@@ -5,6 +5,7 @@ import{cloudinaryUpload} from "../utils/cloudinary.js"
 
 import { ApiResponce } from "../utils/Apiresonse.js";
 import jwt from "jsonwebtoken"
+import mongoose from "mongoose";
 
 const generateRefreshandAccesstoken = async (userid) => {
     try {
@@ -293,7 +294,7 @@ const UpdateInfo=asynchandler(async(req,res)=>{
     if(!(fullname||email)){
         throw new ApiError(400,"All field s are required")
     }
-    await User.findByIdAndUpdate(req.user?._id,{
+    const user=await User.findByIdAndUpdate(req.user?._id,{
         $set:{
             fullname,
             email,
@@ -343,6 +344,126 @@ const udateAvatar=asynchandler(async(req,res)=>{
 
     
 })
+//mongo db pipelines allows us to compare the fileds of differnet users
+const getUserchannelProfile=asynchandler(async(req,res)=>{
+    const {username}=req.params //to get username form the url
+
+    if(!username?.trim()){
+        throw new ApiError(400,"username is missing")
+    }
+
+    //if we get username then we are looking for that username in the db
+   const channel=await User.aggregate([{
+    //here first we match the user which is written in our subsriptions schema
+    $match:{
+        username:username?.toLowerCase()
+
+    }},
+    {
+        $lookup:{
+            from:"subscriptions",
+            localField:"_id",
+            foreignField:"channel",
+            as:"subcribers"
+        },//count how many subscriber on particular cahnnel
+
+    },
+    {
+        $lookup:{
+            from:"subscriptions",
+            localField:"_id",
+            foreignField:"subscriber",
+            as:"SubscribedTo"
+        }
+    },//counts how many channels user has subscribed
+    {//here we add some extr fields to our User model
+        $addFields:{
+           subscriberCount:{
+            $size:"$subcribers"
+           },
+           channelsubscribedCount:{
+            $size:"$SubscribedTo"
+           },
+           isSubscribed:{
+            $cond:{
+                if:{$in:[req.user?._id,"$subcribers.subscriber"]},
+                then:true,
+                else:false,
+            }
+           }
+        
+        }
+    },
+    {
+        $project:{
+            fullname:1,
+            username:1,
+            subscriberCount:1,
+            channelsubscribedCount:1,
+            email:1,
+            avatar:1,
+            coverImage:1,
+        }
+    }
+
+   ])
+//    channel returns a array
+
+   if(!channel?.length){
+    throw new ApiError(404,"channel does not exists")
+   }
+
+   return res
+   .status(200)
+   .json(
+    new ApiResponce(
+        200,channel?.[0],"user Fetched successfully"
+   )
+   )
+})
+const getUserHistory=asynchandler(async(req,res)=>{
+    const user= User.aggregate([{
+        $match:{
+            _id:new mongoose.Types.ObjectId(req.user._id)
+        },
+        $lookup:{
+            from:"videos",
+            localField:"watchHistory",
+            foreignField:"_id",
+            as:"watchHistory",
+            pipeline:[{
+                $lookup:{
+                    from:"videos",
+                    localField:"owner",
+                    foreignField:"_id",
+                    as:"owner",
+                    pipeline:[{
+                        $project:{
+                            fullname:1,
+                            username:1,
+                            avatar:1,
+                        }
+                    }]
+                }
+            },
+        {
+           $addFields:{
+            owner:{
+                $first:"$owner"
+            }
+           } 
+        }]
+        }
+    }])
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponce(
+            200,user[0]?.watchHistory,"Watched history fetched successsfuly"
+        )
+    )
+})
 export{registeruser,
     loginUser,
     logoutuser,
@@ -350,4 +471,6 @@ export{registeruser,
     changePassword,
     currentUser,
     UpdateInfo,
-    udateAvatar}
+    udateAvatar,
+    getUserchannelProfile,
+getUserHistory}
